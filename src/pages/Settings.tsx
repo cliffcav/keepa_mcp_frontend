@@ -232,35 +232,6 @@ export function Settings() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Setup Instructions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Database Setup Required</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>To use API key storage, create the following table in Supabase:</p>
-            <pre className="bg-muted p-4 rounded-md overflow-auto text-xs">
-{`CREATE TABLE user_api_keys (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  key_name TEXT NOT NULL,
-  encrypted_key TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Enable Row Level Security
-ALTER TABLE user_api_keys ENABLE ROW LEVEL SECURITY;
-
--- Create policy to allow users to manage their own keys
-CREATE POLICY "Users can manage their own API keys"
-  ON user_api_keys
-  FOR ALL
-  USING (auth.uid() = user_id);`}
-            </pre>
-          </CardContent>
-        </Card>
       </div>
     </Layout>
   )

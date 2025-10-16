@@ -92,7 +92,7 @@ export function Dashboard() {
                 <Input
                   id="textInput"
                   placeholder="Enter some text"
-                  {...register('textInput', { required: 'This field is required' })}
+                  {...register('textInput')}
                 />
                 {errors.textInput && (
                   <p className="text-sm text-destructive">{errors.textInput.message}</p>
@@ -104,7 +104,7 @@ export function Dashboard() {
                 <Label htmlFor="selectOption">Select Option</Label>
                 <Select
                   id="selectOption"
-                  {...register('selectOption', { required: 'Please select an option' })}
+                  {...register('selectOption')}
                 >
                   <option value="">Choose an option...</option>
                   <option value="option1">Option 1</option>
@@ -124,9 +124,7 @@ export function Dashboard() {
                   type="number"
                   placeholder="Enter a number"
                   {...register('numberInput', {
-                    required: 'This field is required',
-                    valueAsNumber: true,
-                    min: { value: 1, message: 'Minimum value is 1' }
+                    valueAsNumber: true
                   })}
                 />
                 {errors.numberInput && (
@@ -151,7 +149,7 @@ export function Dashboard() {
                 <Input
                   id="dateInput"
                   type="date"
-                  {...register('dateInput', { required: 'Please select a date' })}
+                  {...register('dateInput')}
                 />
                 {errors.dateInput && (
                   <p className="text-sm text-destructive">{errors.dateInput.message}</p>

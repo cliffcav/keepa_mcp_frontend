@@ -35,8 +35,8 @@ export function Login() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Sign In</CardTitle>
-          <CardDescription>Enter your credentials to access your account</CardDescription>
+          <CardTitle className="text-2xl text-center">Seller Scout AI</CardTitle>
+          <CardDescription className="text-center">Enter your credentials to access your account</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">

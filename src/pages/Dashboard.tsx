@@ -1,261 +1,269 @@
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useState, useRef, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { Layout } from '../components/Layout'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
-import { Label } from '../components/ui/label'
-import { Select } from '../components/ui/select'
-import { Textarea } from '../components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
-import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert'
-import { Loading } from '../components/ui/loading'
 import { executeWorkflow, type WorkflowResponse } from '../services/n8nService'
-import { CheckCircle, AlertCircle, Upload } from 'lucide-react'
+import { Send, Bot, User, Lightbulb } from 'lucide-react'
 
-// Example form data type - customize this for your workflow
-type WorkflowFormData = {
-  textInput: string
-  selectOption: string
-  numberInput: number
-  textareaInput: string
-  dateInput: string
-  checkboxInput: boolean
-  file?: FileList
+const SAMPLE_QUESTIONS = [
+  "Find the top 20 selling products in electronics",
+  "Find products with high sales but fewer than 5 sellers in the Beauty category",
+  "What are the trending products in Home & Kitchen?",
+  "Show me profitable products with low competition in Sports",
+]
+
+type Message = {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: Date
 }
 
 export function Dashboard() {
-  const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle')
-  const [result, setResult] = useState<any>(null)
-  const [errorMessage, setErrorMessage] = useState<string>('')
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      role: 'assistant',
+      content: 'Hello! I\'m Seller Scout AI. Skip the data digging - just ask what\'s selling, what\'s trending, or where the next opportunity lies. How can I help you today?',
+      timestamp: new Date()
+    }
+  ])
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [showSamples, setShowSamples] = useState(true)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<WorkflowFormData>()
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
 
-  const onSubmit = async (data: WorkflowFormData) => {
-    setStatus('processing')
-    setErrorMessage('')
-    setResult(null)
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
 
-    // Example: Send data to n8n webhook
-    // Customize this based on your workflow requirements
-    const workflowData = {
-      textInput: data.textInput,
-      selectOption: data.selectOption,
-      numberInput: data.numberInput,
-      textareaInput: data.textareaInput,
-      dateInput: data.dateInput,
-      checkboxInput: data.checkboxInput,
-      // Note: For file uploads, you'll need to handle them separately
-      // See executeWorkflowWithFiles in n8nService.ts
+  const handleSampleClick = async (question: string) => {
+    if (isLoading) return
+
+    setShowSamples(false)
+    setInput('')
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: question,
+      timestamp: new Date()
     }
 
-    const response: WorkflowResponse = await executeWorkflow(workflowData)
+    setMessages(prev => [...prev, userMessage])
+    setIsLoading(true)
 
-    if (response.success) {
-      setStatus('success')
-      setResult(response.data)
-    } else {
-      setStatus('error')
-      setErrorMessage(response.error || 'An error occurred')
+    try {
+      // Send the user's message to the n8n workflow
+      const response: WorkflowResponse = await executeWorkflow({
+        message: userMessage.content,
+        timestamp: userMessage.timestamp.toISOString()
+      })
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: response.success
+          ? (response.data?.output || response.data?.message || JSON.stringify(response.data, null, 2))
+          : `I apologize, but I encountered an error: ${response.error || 'Unknown error'}`,
+        timestamp: new Date()
+      }
+
+      setMessages(prev => [...prev, assistantMessage])
+    } catch (error) {
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'I apologize, but I encountered an unexpected error. Please try again.',
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
+      inputRef.current?.focus()
     }
   }
 
-  const handleReset = () => {
-    reset()
-    setStatus('idle')
-    setResult(null)
-    setErrorMessage('')
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!input.trim() || isLoading) return
+
+    setShowSamples(false)
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: input.trim(),
+      timestamp: new Date()
+    }
+
+    setMessages(prev => [...prev, userMessage])
+    setInput('')
+    setIsLoading(true)
+
+    try {
+      // Send the user's message to the n8n workflow
+      const response: WorkflowResponse = await executeWorkflow({
+        message: userMessage.content,
+        timestamp: userMessage.timestamp.toISOString()
+      })
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: response.success
+          ? (response.data?.output || response.data?.message || JSON.stringify(response.data, null, 2))
+          : `I apologize, but I encountered an error: ${response.error || 'Unknown error'}`,
+        timestamp: new Date()
+      }
+
+      setMessages(prev => [...prev, assistantMessage])
+    } catch (error) {
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'I apologize, but I encountered an unexpected error. Please try again.',
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
+      inputRef.current?.focus()
+    }
   }
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Workflow Dashboard</h1>
-          <p className="text-muted-foreground mt-2">
-            Execute your n8n workflow with custom inputs
-          </p>
-        </div>
-
-        {/* Workflow Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Workflow Configuration</CardTitle>
-            <CardDescription>
-              Fill in the form below to trigger your n8n workflow. Customize these fields based on your workflow requirements.
-            </CardDescription>
+      <div className="flex flex-col h-[calc(100vh-8rem)] max-w-4xl mx-auto">
+        {/* Chat Container */}
+        <Card className="flex-1 flex flex-col overflow-hidden min-h-0">
+          <CardHeader className="border-b">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Bot className="h-5 w-5" />
+                  Marketplace Insights
+                </CardTitle>
+                <CardDescription>
+                  Ask about products, trends, pricing, or market opportunities
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSamples(!showSamples)}
+                className="gap-2"
+              >
+                <Lightbulb className="h-4 w-4" />
+                {showSamples ? 'Hide' : 'Show'} Examples
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              {/* Text Input Example */}
-              <div className="space-y-2">
-                <Label htmlFor="textInput">Text Input</Label>
-                <Input
-                  id="textInput"
-                  placeholder="Enter some text"
-                  {...register('textInput')}
-                />
-                {errors.textInput && (
-                  <p className="text-sm text-destructive">{errors.textInput.message}</p>
-                )}
-              </div>
 
-              {/* Select Dropdown Example */}
-              <div className="space-y-2">
-                <Label htmlFor="selectOption">Select Option</Label>
-                <Select
-                  id="selectOption"
-                  {...register('selectOption')}
-                >
-                  <option value="">Choose an option...</option>
-                  <option value="option1">Option 1</option>
-                  <option value="option2">Option 2</option>
-                  <option value="option3">Option 3</option>
-                </Select>
-                {errors.selectOption && (
-                  <p className="text-sm text-destructive">{errors.selectOption.message}</p>
-                )}
-              </div>
-
-              {/* Number Input Example */}
-              <div className="space-y-2">
-                <Label htmlFor="numberInput">Number Input</Label>
-                <Input
-                  id="numberInput"
-                  type="number"
-                  placeholder="Enter a number"
-                  {...register('numberInput', {
-                    valueAsNumber: true
-                  })}
-                />
-                {errors.numberInput && (
-                  <p className="text-sm text-destructive">{errors.numberInput.message}</p>
-                )}
-              </div>
-
-              {/* Textarea Example */}
-              <div className="space-y-2">
-                <Label htmlFor="textareaInput">Description</Label>
-                <Textarea
-                  id="textareaInput"
-                  placeholder="Enter a detailed description"
-                  rows={4}
-                  {...register('textareaInput')}
-                />
-              </div>
-
-              {/* Date Input Example */}
-              <div className="space-y-2">
-                <Label htmlFor="dateInput">Date</Label>
-                <Input
-                  id="dateInput"
-                  type="date"
-                  {...register('dateInput')}
-                />
-                {errors.dateInput && (
-                  <p className="text-sm text-destructive">{errors.dateInput.message}</p>
-                )}
-              </div>
-
-              {/* Checkbox Example */}
-              <div className="flex items-center space-x-2">
-                <input
-                  id="checkboxInput"
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-input"
-                  {...register('checkboxInput')}
-                />
-                <Label htmlFor="checkboxInput" className="cursor-pointer">
-                  Enable optional feature
-                </Label>
-              </div>
-
-              {/* File Upload Example */}
-              <div className="space-y-2">
-                <Label htmlFor="file">File Upload (Optional)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="file"
-                    type="file"
-                    {...register('file')}
-                  />
-                  <Upload className="h-4 w-4 text-muted-foreground" />
+          {/* Messages */}
+          <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Sample Questions */}
+            {showSamples && (
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3 text-muted-foreground">
+                  <Lightbulb className="h-4 w-4" />
+                  <span className="text-sm font-medium">Try asking:</span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Note: File uploads require using executeWorkflowWithFiles() in the n8nService
-                </p>
+                <div className="grid gap-2">
+                  {SAMPLE_QUESTIONS.map((question, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSampleClick(question)}
+                      className="text-left p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-sm"
+                    >
+                      {question}
+                    </button>
+                  ))}
+                </div>
               </div>
+            )}
 
-              {/* Submit Buttons */}
-              <div className="flex gap-4">
-                <Button
-                  type="submit"
-                  disabled={status === 'processing'}
-                  className="flex-1"
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex gap-3 ${
+                  message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                }`}
+              >
+                <div
+                  className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                    message.role === 'user'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted'
+                  }`}
                 >
-                  {status === 'processing' ? 'Processing...' : 'Execute Workflow'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleReset}
-                  disabled={status === 'processing'}
+                  {message.role === 'user' ? (
+                    <User className="h-4 w-4" />
+                  ) : (
+                    <Bot className="h-4 w-4" />
+                  )}
+                </div>
+                <div
+                  className={`flex-1 rounded-lg p-3 ${
+                    message.role === 'user'
+                      ? 'bg-primary text-primary-foreground ml-12'
+                      : 'bg-muted mr-12'
+                  }`}
                 >
-                  Reset
-                </Button>
+                  {message.role === 'assistant' ? (
+                    <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  )}
+                  <p className="text-xs opacity-70 mt-1">
+                    {message.timestamp.toLocaleTimeString()}
+                  </p>
+                </div>
               </div>
+            ))}
+            {isLoading && (
+              <div className="flex gap-3">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                  <Bot className="h-4 w-4" />
+                </div>
+                <div className="flex-1 rounded-lg p-3 bg-muted mr-12">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </CardContent>
+
+          {/* Input Form */}
+          <div className="border-t p-4">
+            <form onSubmit={handleSubmit} className="flex gap-2">
+              <Input
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask about products, trends, or market insights..."
+                disabled={isLoading}
+                className="flex-1"
+              />
+              <Button type="submit" disabled={isLoading || !input.trim()}>
+                <Send className="h-4 w-4" />
+              </Button>
             </form>
-          </CardContent>
-        </Card>
-
-        {/* Loading State */}
-        {status === 'processing' && (
-          <Card>
-            <CardContent className="py-8">
-              <Loading size="lg" text="Processing your request..." />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Success Result */}
-        {status === 'success' && result && (
-          <Alert>
-            <CheckCircle className="h-4 w-4" />
-            <AlertTitle>Workflow Completed Successfully</AlertTitle>
-            <AlertDescription>
-              <div className="mt-2">
-                <p className="font-medium mb-2">Result:</p>
-                <pre className="bg-muted p-4 rounded-md overflow-auto text-sm">
-                  {JSON.stringify(result, null, 2)}
-                </pre>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Error State */}
-        {status === 'error' && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{errorMessage}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Instructions Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Customization Instructions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>To customize this form for your n8n workflow:</p>
-            <ol className="list-decimal list-inside space-y-1 ml-2">
-              <li>Modify the WorkflowFormData type to match your workflow inputs</li>
-              <li>Add, remove, or modify form fields as needed</li>
-              <li>Update the onSubmit function to format data for your webhook</li>
-              <li>Configure your n8n webhook URL in the .env file</li>
-              <li>Customize the result display based on your workflow output</li>
-            </ol>
-          </CardContent>
+          </div>
         </Card>
       </div>
     </Layout>

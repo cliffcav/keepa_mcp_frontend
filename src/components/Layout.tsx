@@ -23,7 +23,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-6">
               <Link to="/dashboard" className="text-xl font-bold text-primary">
-                n8n Workflow
+                Seller Scout
               </Link>
               <div className="flex gap-4">
                 <Link to="/dashboard">
@@ -33,7 +33,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     className="gap-2"
                   >
                     <Workflow className="h-4 w-4" />
-                    Workflow
+                    Chat
                   </Button>
                 </Link>
                 <Link to="/settings">
